@@ -55,7 +55,8 @@ namespace QuantLib {
                            Size requiredSamples,
                            Real requiredTolerance,
                            Size maxSamples,
-                           BigNatural seed);
+                           BigNatural seed,
+			   bool constantParameters_);   //modifié : ajouté
 
       protected:
         boost::shared_ptr<path_pricer_type> pathPricer() const;
@@ -86,6 +87,7 @@ namespace QuantLib {
         Real tolerance_;
         bool brownianBridge_;
         BigNatural seed_;
+	bool constantParameters_;   //modifié : ajouté
     };
 
 
@@ -101,7 +103,8 @@ namespace QuantLib {
         Size requiredSamples,
         Real requiredTolerance,
         Size maxSamples,
-        BigNatural seed)
+        BigNatural seed,
+	constantParameters_ = false)     //modifié : ajouté
     : MCVanillaEngine<SingleVariate, RNG, S>(process,
                                              timeSteps,
                                              timeStepsPerYear,
@@ -111,7 +114,9 @@ namespace QuantLib {
                                              requiredSamples,
                                              requiredTolerance,
                                              maxSamples,
-                                             seed) {}
+                                             seed,
+					     constantParameters_) {}      //modifié : ajouté
+
 
 
     template <class RNG, class S>
@@ -124,7 +129,13 @@ namespace QuantLib {
 
         boost::shared_ptr<GeneralizedBlackScholesProcess> process =
             boost::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
-        QL_REQUIRE(process, "Black-Scholes process required");
+	
+	if(constantParameters_) {
+    		ConstantBlackScholesProcess constProcess = 
+			makeConstantProcess(process, maturity, strike);    // modifié : utiliser constProcess
+		}
+        
+	QL_REQUIRE(process, "Black-Scholes process required");
 
         return boost::shared_ptr<typename MCEuropeanEngine_2<RNG, S>::path_pricer_type>(
             new EuropeanPathPricer(payoff->optionType(),
@@ -203,6 +214,7 @@ namespace QuantLib {
     template <class RNG, class S>
     inline MakeMCEuropeanEngine_2<RNG, S>&
     MakeMCEuropeanEngine_2<RNG, S>::withConstantParameters(bool b) {
+	constantParameters_ = b;         //modifié : ajouté
         return *this;
     }
 
@@ -212,15 +224,16 @@ namespace QuantLib {
                    "number of steps not given");
         QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(),
                    "number of steps overspecified");
-        return boost::shared_ptr<PricingEngine>(new MCEuropeanEngine_2<RNG, S>(process_,
-                                                                               steps_,
+        return boost::shared_ptr<PricingEngine>(new MCEuropeanEngine_2<RNG, S>(process_,                                                                             
+									       steps_,
                                                                                stepsPerYear_,
                                                                                brownianBridge_,
                                                                                antithetic_,
                                                                                samples_,
                                                                                tolerance_,
                                                                                maxSamples_,
-                                                                               seed_));
+									       seed_,
+									       constantParameters_));     //modifié : ajouté
     }
 
 }
