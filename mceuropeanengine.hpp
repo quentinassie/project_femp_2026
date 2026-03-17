@@ -56,7 +56,7 @@ namespace QuantLib {
                            Real requiredTolerance,
                            Size maxSamples,
                            BigNatural seed,
-			   bool constantParameters_);   //modifié : ajouté
+				bool constantParameters_);   //modifié : ajouté
 
       protected:
         boost::shared_ptr<path_pricer_type> pathPricer() const;
@@ -87,7 +87,7 @@ namespace QuantLib {
         Real tolerance_;
         bool brownianBridge_;
         BigNatural seed_;
-	bool constantParameters_;   //modifié : ajouté
+		bool constantParameters_;   //modifié : ajouté
     };
 
 
@@ -115,7 +115,7 @@ namespace QuantLib {
                                              requiredTolerance,
                                              maxSamples,
                                              seed,
-					     constantParameters_) {}      //modifié : ajouté
+						constantParameters_) {}      //modifié : ajouté
 
 
 
@@ -130,9 +130,10 @@ namespace QuantLib {
         boost::shared_ptr<GeneralizedBlackScholesProcess> process =
             boost::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
 	
-	if(constantParameters_) {
-    		ConstantBlackScholesProcess constProcess = 
-			makeConstantProcess(process, maturity, strike);    // modifié : utiliser constProcess
+		if(constantParameters_) {
+    			ConstantBlackScholesProcess constProcess = 
+				makeConstantProcess(process, maturity, strike);    
+			// modifié : utiliser constProcess
 		}
         
 	QL_REQUIRE(process, "Black-Scholes process required");
