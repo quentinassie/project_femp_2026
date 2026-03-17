@@ -1,20 +1,31 @@
 #include "constantprocesshelper.hpp"
+#include <ql/termstructures/yield/zerocurve.hpp>
 
-ConstantBlackScholesProcess makeConstantProcess(
-    const QuantLib::ext::shared_ptr<QuantLib::GeneralizedBlackScholesProcess>& process,
-    QuantLib::Time maturity,
-    QuantLib::Real strike
-)
-{
-    using namespace QuantLib;
+namespace QuantLib {
 
-    Real S0 = process->x0();
+    
+    ext::shared_ptr<ConstantBlackScholesProcess> makeConstantProcess(
+        const QuantLib::ext::shared_ptr<QuantLib::GeneralizedBlackScholesProcess>& process,
+        QuantLib::Time maturity,
+        QuantLib::Real strike
+    )
 
-    Rate r = process->riskFreeRate()->zeroRate(maturity, Continuous);
 
-    Rate q = process->dividendYield()->zeroRate(maturity, Continuous);
+    {
+    
 
-    Volatility sigma = process->blackVolatility()->blackVol(maturity, strike);
+        Real S0 = process->x0();
 
-    return ConstantBlackScholesProcess(S0, r, q, sigma);
+        Rate r = process->riskFreeRate()->zeroRate(maturity, Continuous).rate();
+
+        // dividend might be empty
+        Rate q = 0.0;
+        if (!process->dividendYield().empty()) {
+            q = process->dividendYield()->zeroRate(maturity, Continuous).rate();
+        }
+
+        Volatility sigma = process->blackVolatility()->blackVol(maturity, strike);
+
+        return  ext::make_shared<ConstantBlackScholesProcess>(S0, r, q, sigma);
+    }
 }
