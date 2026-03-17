@@ -1,11 +1,10 @@
 #include "constantprocesshelper.hpp"
 
 ConstantBlackScholesProcess makeConstantProcess(
-    const QuantLib::ext::shared_ptr<QuantLib::GeneralizedBlackScholesProcess>& process;
-    QuantLib::Time maturity;
-    QuantLib::Real strike;
+    const QuantLib::ext::shared_ptr<QuantLib::GeneralizedBlackScholesProcess>& process,
+    QuantLib::Time maturity,
+    QuantLib::Real strike
 )
-
 {
     using namespace QuantLib;
 

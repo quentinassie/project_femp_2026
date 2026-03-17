@@ -1,4 +1,4 @@
-#include "ConstantBlackScholesProcess.hpp"
+#include "constantblackscholesprocess.hpp"
 
 using namespace QuantLib;
 
@@ -12,6 +12,12 @@ ConstantBlackScholesProcess::ConstantBlackScholesProcess(Real S0, Rate r, Rate q
 ConstantBlackScholesProcess::~ConstantBlackScholesProcess(){
 	
 }
+
+
+Real ConstantBlackScholesProcess::x0() const {
+	return S0_;
+}
+
 
 //derivée du modele
 Real ConstantBlackScholesProcess::drift(Time t, Real S) const { 

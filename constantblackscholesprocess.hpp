@@ -9,6 +9,7 @@ class ConstantBlackScholesProcess : public StochasticProcess1D {
    		Rate r_;
     	Rate q_;
     	Volatility sigma_;
+		
 
 	public:
     		//Constructeur
@@ -23,6 +24,9 @@ class ConstantBlackScholesProcess : public StochasticProcess1D {
 		~ConstantBlackScholesProcess();
 
 		//Fonctions appelées par Monte-Carlo
+
+		Real x0() const override;
+		
     	Real drift(Time t, Real S) const override;
     		
 		Real diffusion(Time t, Real S) const override ;
