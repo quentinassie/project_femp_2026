@@ -64,6 +64,7 @@ namespace QuantLib {
       private:
         bool constantParameters_;
         ext::shared_ptr<GeneralizedBlackScholesProcess> originalProcess;
+        boost::shared_ptr<path_generator_type> pathGenerator() const override;
     };
 
 
@@ -102,18 +103,7 @@ namespace QuantLib {
         ext::shared_ptr<EuropeanExercise> exercise =
             ext::dynamic_pointer_cast<EuropeanExercise>(this->arguments_.exercise);
         QL_REQUIRE(exercise, "wrong exercise given");
-        // if constantParameters is true, we create a new process with constant parameters, otherwise we use the original process
-        //std::cout << "constantParameters = " << constantParameters_ << std::endl;
-        if (constantParameters_) {
-            ext::shared_ptr<ConstantBlackScholesProcess> process =makeConstantProcess(originalProcess,this->timeGrid().back(),payoff->strike());
-            QL_REQUIRE(process, "Black-Scholes process required");
-            return  ext::shared_ptr<typename MCDiscreteArithmeticASEngine_2<RNG, S>::path_pricer_type>(
-                            new ArithmeticASOPathPricer(payoff->optionType(),
-                                        process->discount(this->timeGrid().back()),
-                                        this->arguments_.runningAccumulator,
-                                        this->arguments_.pastFixings));
-        }
-        else {
+        
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
             ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
         
@@ -124,9 +114,32 @@ namespace QuantLib {
                                         process->riskFreeRate()->discount(exercise->lastDate()),
                                         this->arguments_.runningAccumulator,
                                         this->arguments_.pastFixings));
-        }
+        
     }
 
+    template <class RNG, class S>
+    inline ext::shared_ptr<typename MCDiscreteArithmeticASEngine_2<RNG, S>::path_generator_type>
+    MCDiscreteArithmeticASEngine_2<RNG, S>::pathGenerator() const {
+        ext::shared_ptr<StochasticProcess1D> processToUse =
+            ext::dynamic_pointer_cast<StochasticProcess1D>(this->process_);
+
+        if (constantParameters_) {
+            Time maturity = this->timeGrid().back();
+            ext::shared_ptr<PlainVanillaPayoff> payoff =
+                ext::dynamic_pointer_cast<PlainVanillaPayoff>(this->arguments_.payoff);
+            QL_REQUIRE(payoff, "non-plain payoff given");
+            Real strike = payoff->strike();
+
+            processToUse = makeConstantProcess(originalProcess, maturity, strike);
+        }
+
+        TimeGrid grid = this->timeGrid();
+        typename RNG::rsg_type gen =
+            RNG::make_sequence_generator(grid.size() - 1, this->seed_);
+
+        return ext::shared_ptr<path_generator_type>(
+            new path_generator_type(processToUse, grid, gen, this->brownianBridge_));
+    }
 
     template <class RNG = PseudoRandom, class S = Statistics>
     class MakeMCDiscreteArithmeticASEngine_2 {
