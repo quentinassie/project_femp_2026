@@ -56,10 +56,12 @@ namespace QuantLib {
                            Real requiredTolerance,
                            Size maxSamples,
                            BigNatural seed,
-				bool constantParameters_);   //modifié : ajouté
+				bool constantParameters);   //modifié : ajouté
 
       protected:
         boost::shared_ptr<path_pricer_type> pathPricer() const;
+        boost::shared_ptr<path_generator_type> pathGenerator() const override;
+        bool constantParameters_;
     };
 
     //! Monte Carlo European engine factory
@@ -87,7 +89,7 @@ namespace QuantLib {
         Real tolerance_;
         bool brownianBridge_;
         BigNatural seed_;
-		bool constantParameters_;   //modifié : ajouté
+		bool makeconstantParameters_;   //modifié : ajouté
     };
 
 
@@ -104,7 +106,7 @@ namespace QuantLib {
         Real requiredTolerance,
         Size maxSamples,
         BigNatural seed,
-	constantParameters_ = false)     //modifié : ajouté
+	bool constantParameters)     //modifié : ajouté
     : MCVanillaEngine<SingleVariate, RNG, S>(process,
                                              timeSteps,
                                              timeStepsPerYear,
@@ -114,10 +116,9 @@ namespace QuantLib {
                                              requiredSamples,
                                              requiredTolerance,
                                              maxSamples,
-                                             seed,
-						constantParameters_) {}      //modifié : ajouté
-
-
+                                             seed
+						) , constantParameters_(constantParameters)
+                        {}     
 
     template <class RNG, class S>
     inline boost::shared_ptr<typename MCEuropeanEngine_2<RNG, S>::path_pricer_type>
@@ -129,14 +130,8 @@ namespace QuantLib {
 
         boost::shared_ptr<GeneralizedBlackScholesProcess> process =
             boost::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
-	
-		if(constantParameters_) {
-    			ConstantBlackScholesProcess constProcess = 
-				makeConstantProcess(process, maturity, strike);    
-			// modifié : utiliser constProcess
-		}
         
-	QL_REQUIRE(process, "Black-Scholes process required");
+	    QL_REQUIRE(process, "Black-Scholes process required");
 
         return boost::shared_ptr<typename MCEuropeanEngine_2<RNG, S>::path_pricer_type>(
             new EuropeanPathPricer(payoff->optionType(),
@@ -146,11 +141,39 @@ namespace QuantLib {
 
 
     template <class RNG, class S>
+    inline boost::shared_ptr<typename MCEuropeanEngine_2<RNG, S>::path_generator_type>
+    MCEuropeanEngine_2<RNG, S>::pathGenerator() const {
+
+        boost::shared_ptr<StochasticProcess1D> processToUse =
+        boost::dynamic_pointer_cast<StochasticProcess1D>(this->process_);
+
+        if (constantParameters_) {
+            Time maturity = this->process_->time(this->arguments_.exercise->lastDate());
+
+            boost::shared_ptr<PlainVanillaPayoff> payoff =
+                boost::dynamic_pointer_cast<PlainVanillaPayoff>(this->arguments_.payoff);
+            QL_REQUIRE(payoff, "non-plain payoff given");
+
+            Real strike = payoff->strike();
+
+            processToUse = makeConstantProcess(boost::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_), maturity, strike);
+        }
+
+        TimeGrid grid = this->timeGrid();
+        typename RNG::rsg_type gen =
+            RNG::make_sequence_generator(grid.size() - 1, this->seed_);
+
+        return boost::shared_ptr<path_generator_type>(
+            new path_generator_type(processToUse, grid, gen, this->brownianBridge_));
+    }
+
+
+    template <class RNG, class S>
     inline MakeMCEuropeanEngine_2<RNG, S>::MakeMCEuropeanEngine_2(
         const boost::shared_ptr<GeneralizedBlackScholesProcess>& process)
     : process_(process), antithetic_(false), steps_(Null<Size>()), stepsPerYear_(Null<Size>()),
       samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>()),
-      brownianBridge_(false), seed_(0) {}
+      brownianBridge_(false), seed_(0), makeconstantParameters_(false) {}
 
     template <class RNG, class S>
     inline MakeMCEuropeanEngine_2<RNG, S>& MakeMCEuropeanEngine_2<RNG, S>::withSteps(Size steps) {
@@ -215,7 +238,7 @@ namespace QuantLib {
     template <class RNG, class S>
     inline MakeMCEuropeanEngine_2<RNG, S>&
     MakeMCEuropeanEngine_2<RNG, S>::withConstantParameters(bool b) {
-	constantParameters_ = b;         //modifié : ajouté
+	makeconstantParameters_ = b;         //modifié : ajouté
         return *this;
     }
 
@@ -234,7 +257,7 @@ namespace QuantLib {
                                                                                tolerance_,
                                                                                maxSamples_,
 									       seed_,
-									       constantParameters_));     //modifié : ajouté
+									       makeconstantParameters_));     //modifié : ajouté
     }
 
 }
