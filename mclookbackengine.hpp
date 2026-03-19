@@ -29,6 +29,7 @@
 #include <ql/pricingengines/mcsimulation.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
+#include "constantprocesshelper.hpp"
 
 namespace QuantLib {
 
@@ -50,8 +51,13 @@ namespace QuantLib {
                            Size requiredSamples,
                            Real requiredTolerance,
                            Size maxSamples,
-                           BigNatural seed);
+                           BigNatural seed,
+                        bool constantParam);
+                        
+
         void calculate() const override {
+            //engine non constant
+            
             Real spot = process_->x0();
             QL_REQUIRE(spot > 0.0, "negative or null underlying given");
             McSimulation<SingleVariate,RNG,S>::calculate(requiredTolerance_,
@@ -61,20 +67,40 @@ namespace QuantLib {
             if constexpr (RNG::allowsErrorEstimate)
                 this->results_.errorEstimate =
                     this->mcModel_->sampleAccumulator().errorEstimate();
+            
+
+            //partie ajoutée : parametres constants pris en compte
+            
         }
 
       protected:
         // McSimulation implementation
         TimeGrid timeGrid() const override;
         ext::shared_ptr<path_generator_type> pathGenerator() const override {
+            ext::shared_ptr<StochasticProcess1D> processToUse = process_;
+            if (constantParam_) {
+                Time maturity = process_->time(this->arguments_.exercise->lastDate());//maturite
+
+                ext::shared_ptr<PlainVanillaPayoff> payoff =
+                    ext::dynamic_pointer_cast<PlainVanillaPayoff>(this->arguments_.payoff);
+                QL_REQUIRE(payoff, "non-plain payoff given");
+
+                Real strike = payoff->strike();//strike
+                
+                processToUse = makeConstantProcess(process_, maturity, strike);
+                }
+                
             TimeGrid grid = timeGrid();
             typename RNG::rsg_type gen =
                 RNG::make_sequence_generator(grid.size()-1,seed_);
+                
             return ext::shared_ptr<path_generator_type>(
-                         new path_generator_type(process_,
+                         new path_generator_type(processToUse,
                                                  grid, gen, brownianBridge_));
         }
         ext::shared_ptr<path_pricer_type> pathPricer() const override;
+
+        
         // data members
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         Size timeSteps_, timeStepsPerYear_;
@@ -83,6 +109,7 @@ namespace QuantLib {
         bool antithetic_;
         bool brownianBridge_;
         BigNatural seed_;
+        bool constantParam_;
     };
 
 
@@ -144,6 +171,7 @@ namespace QuantLib {
         Size steps_, stepsPerYear_, samples_, maxSamples_;
         Real tolerance_;
         BigNatural seed_ = 0;
+        bool constantParameters_ = false;
     };
 
 
@@ -159,11 +187,12 @@ namespace QuantLib {
         Size requiredSamples,
         Real requiredTolerance,
         Size maxSamples,
-        BigNatural seed)
+        BigNatural seed,
+        bool constantParam)
     : McSimulation<SingleVariate, RNG, S>(antitheticVariate, false), process_(std::move(process)),
       timeSteps_(timeSteps), timeStepsPerYear_(timeStepsPerYear), requiredSamples_(requiredSamples),
       maxSamples_(maxSamples), requiredTolerance_(requiredTolerance),
-      brownianBridge_(brownianBridge), seed_(seed) {
+      brownianBridge_(brownianBridge), seed_(seed) , constantParam_(constantParam){
         QL_REQUIRE(timeSteps != Null<Size>() ||
                    timeStepsPerYear != Null<Size>(),
                    "no time steps provided");
@@ -283,6 +312,7 @@ namespace QuantLib {
     template <class RNG, class S>
     inline MakeMCFixedLookbackEngine_2<RNG,S>&
     MakeMCFixedLookbackEngine_2<RNG,S>::withConstantParameters(bool b) {
+        constantParameters_ = b;
         return *this;
     }
 
@@ -302,7 +332,8 @@ namespace QuantLib {
                                                samples_,
                                                tolerance_,
                                                maxSamples_,
-                                               seed_));
+                                               seed_,
+                                                constantParameters_)); //pour que le engine sache le statut constant ou non
     }
 
 }
